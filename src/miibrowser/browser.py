@@ -8,6 +8,7 @@ from typing import Optional, Dict, List
 import threading
 from miibrowser.search import DuckDuckGoSearch
 from miibrowser.css_enhancer import get_enhanced_css
+from miibrowser import config
 
 try:
     from tkinterweb import HtmlFrame
@@ -319,41 +320,50 @@ class BrowserTab:
         self.webview_frame.pack(fill=tk.BOTH, expand=True)
         
         try:
-            # Try to fetch and enhance the HTML content
-            try:
-                import requests
-                from urllib.parse import urljoin, urlparse
-                
-                response = requests.get(url, timeout=10, headers={
-                    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
-                })
-                
-                if response.status_code == 200:
-                    html_content = response.text
+            # Check if CSS enhancement is enabled (configured in config.py)
+            if config.ENABLE_CSS_ENHANCEMENT:
+                # Try to fetch and enhance the HTML content
+                try:
+                    import requests
+                    from urllib.parse import urljoin, urlparse
                     
-                    # Get the base URL for relative links (handle redirects)
-                    base_url = response.url if response.url else url
+                    response = requests.get(url, timeout=config.REQUEST_TIMEOUT, headers={
+                        'User-Agent': config.USER_AGENT
+                    })
                     
-                    # Inject enhanced CSS and base tag into the HTML
-                    enhanced_css = f"<style>{get_enhanced_css()}</style>"
-                    base_tag = f'<base href="{base_url}">'
-                    enhanced_head = f'{base_tag}{enhanced_css}'
-                    
-                    # Try to inject CSS and base tag after <head> tag or at the beginning
-                    if '<head>' in html_content.lower():
-                        html_content = html_content.replace('<head>', f'<head>{enhanced_head}', 1)
-                    elif '<html>' in html_content.lower():
-                        html_content = html_content.replace('<html>', f'<html><head>{enhanced_head}</head>', 1)
+                    if response.status_code == 200:
+                        html_content = response.text
+                        
+                        # Get the base URL for relative links (handle redirects)
+                        base_url = response.url if response.url else url
+                        
+                        # Inject enhanced CSS and base tag into the HTML
+                        enhanced_css = f"<style>{get_enhanced_css()}</style>"
+                        base_tag = f'<base href="{base_url}">'
+                        enhanced_head = f'{base_tag}{enhanced_css}'
+                        
+                        # Try to inject CSS and base tag after <head> tag or at the beginning
+                        if '<head>' in html_content.lower():
+                            html_content = html_content.replace('<head>', f'<head>{enhanced_head}', 1)
+                        elif '<html>' in html_content.lower():
+                            html_content = html_content.replace('<html>', f'<html><head>{enhanced_head}</head>', 1)
+                        else:
+                            html_content = f'<html><head>{enhanced_head}</head><body>{html_content}</body></html>'
+                        
+                        # Load the enhanced HTML
+                        self.html_widget.load_html(html_content)
                     else:
-                        html_content = f'<html><head>{enhanced_head}</head><body>{html_content}</body></html>'
-                    
-                    # Load the enhanced HTML
-                    self.html_widget.load_html(html_content)
-                else:
-                    # If fetch fails, fall back to direct URL load
+                        # If fetch fails, fall back to direct URL load
+                        self.html_widget.load_url(url)
+                except Exception as e:
+                    # If enhancement fails, fall back to direct URL load
+                    if config.DEBUG_MODE:
+                        print(f"CSS enhancement failed, using direct load: {e}")
                     self.html_widget.load_url(url)
-            except:
-                # If enhancement fails, fall back to direct URL load
+            else:
+                # CSS enhancement disabled - use direct URL loading (more stable)
+                if config.DEBUG_MODE:
+                    print(f"Loading URL directly (CSS enhancement disabled): {url}")
                 self.html_widget.load_url(url)
             
             # Force frame update to ensure display
@@ -419,7 +429,7 @@ class MiiBrowser:
     def __init__(self):
         self.root = tk.Tk()
         self.root.title("MiiBrowser")
-        self.root.geometry("1400x900")
+        self.root.geometry(f"{config.WINDOW_WIDTH}x{config.WINDOW_HEIGHT}")
         
         # Allow window resizing
         self.root.resizable(True, True)

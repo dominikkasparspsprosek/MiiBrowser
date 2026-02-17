@@ -111,6 +111,42 @@ python miibrowser/browser.py
 - **F11**: Toggle fullscreen mode
 - **Escape**: Exit fullscreen mode
 
+## Configuration & Stability ⚙️
+
+MiiBrowser includes a configuration system for customizing behavior. Settings are in [`src/miibrowser/config.py`](src/miibrowser/config.py).
+
+### Default Settings (Stable)
+
+The browser ships with **CSS enhancement disabled** for maximum stability:
+
+```python
+ENABLE_CSS_ENHANCEMENT = False  # Disabled by default
+DEBUG_MODE = False               # Clean output
+WINDOW_WIDTH = 1400              # Window width
+WINDOW_HEIGHT = 900              # Window height
+```
+
+### Why CSS Enhancement is Disabled
+
+CSS enhancement provides better styling but can cause:
+
+- ⚠️ Crashes on some websites (tkinterweb assertion errors)
+- ⚠️ `file:///` redirect issues with relative links
+- ⚠️ Slower page loading
+
+**Current behavior (stable):** Direct URL loading, no HTML injection
+
+### Enabling CSS Enhancement
+
+If you want enhanced CSS support (colors, backgrounds, positioning, etc.):
+
+1. Edit `src/miibrowser/config.py`
+2. Set `ENABLE_CSS_ENHANCEMENT = True`
+3. Optionally enable `DEBUG_MODE = True` to see errors
+4. Restart the browser
+
+See [CONFIGURATION.md](CONFIGURATION.md) for detailed options and [TROUBLESHOOTING.md](TROUBLESHOOTING.md) for common issues.
+
 ## Navigation Controls 🧭
 
 - **Back Button (◄)**: Navigate to previous page in history
