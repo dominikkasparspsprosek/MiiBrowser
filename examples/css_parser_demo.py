@@ -98,7 +98,7 @@ def main():
     print("-" * 70)
     font_sizes = parser.extract_properties(example_css, "font-size")
     for selector, value in font_sizes:
-        print(f"   {selector} → {value}")
+        print(f"   {selector} -> {value}")
     print()
     
     # Example 5: Get all declarations organized by selector
@@ -200,17 +200,17 @@ def main():
     print("Summary: CSS Parser Features Demonstrated")
     print("=" * 70)
     print("""
-    ✓ Parse complete stylesheets
-    ✓ Extract CSS selectors
-    ✓ Extract color values
-    ✓ Extract specific properties
-    ✓ Get all declarations
-    ✓ Parse inline styles
-    ✓ Extract media queries
-    ✓ Minify CSS
-    ✓ Prettify CSS
-    ✓ Validate CSS syntax
-    ✓ Handle complex CSS features
+    [OK] Parse complete stylesheets
+    [OK] Extract CSS selectors
+    [OK] Extract color values
+    [OK] Extract specific properties
+    [OK] Get all declarations
+    [OK] Parse inline styles
+    [OK] Extract media queries
+    [OK] Minify CSS
+    [OK] Prettify CSS
+    [OK] Validate CSS syntax
+    [OK] Handle complex CSS features
     """)
     print("=" * 70)
 

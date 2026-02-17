@@ -478,7 +478,7 @@ class MiiBrowser:
         # Fullscreen button
         fullscreen_button = tk.Button(
             address_frame,
-            text="⛶",
+            text="[ ]",
             command=self._toggle_fullscreen,
             bg="#FFFFFF",
             fg="#5F6368",
