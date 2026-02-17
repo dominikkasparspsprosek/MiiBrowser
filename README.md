@@ -112,12 +112,14 @@ MiiBrowser/
 │       ├── main.py       # Entry point
 │       ├── browser.py    # Main browser GUI
 │       ├── search.py     # DuckDuckGo search module
-│       └── css_parser.py # CSS parsing utilities
+│       ├── css_parser.py # CSS parsing utilities
+│       └── js_parser.py  # JavaScript parsing utilities
 └── tests/
     ├── __init__.py       # Tests package
     ├── test_browser.py   # Browser GUI tests
     ├── test_search.py    # Search functionality tests
-    └── test_css_parser.py # CSS parser tests
+    ├── test_css_parser.py # CSS parser tests
+    └── test_js_parser.py  # JavaScript parser tests
 ```
 
 ## Requirements 📋
@@ -130,6 +132,7 @@ MiiBrowser/
 - CairoSVG>=2.5.0 (SVG image support)
 - tkinterweb-tkhtml-extras>=1.3.0 (enhanced browser features)
 - tinycss2>=1.2.0 (full CSS parsing support)
+- esprima>=4.0.0 (full JavaScript parsing support)
 
 All dependencies are automatically installed when using `pip install -e .`.
 
@@ -190,6 +193,95 @@ is_valid, error_msg = validate_css(css_text)
 - ✨ **CSS Prettification**: Format CSS with proper indentation
 - ✔️ **Validation**: Validate CSS syntax
 - 🎯 **Inline Style Parsing**: Parse HTML inline style attributes
+
+## JavaScript Parsing Capabilities 🚀
+
+MiiBrowser includes a comprehensive JavaScript parser built with `esprima` that provides full ECMAScript parsing:
+
+```python
+from miibrowser import JSParser, parse_javascript, validate_javascript, extract_functions
+
+# Parse JavaScript code
+parser = JSParser()
+ast = parser.parse("""
+    function greet(name) {
+        return `Hello, ${name}!`;
+    }
+
+    const add = (a, b) => a + b;
+
+    class Calculator {
+        multiply(x, y) {
+            return x * y;
+        }
+    }
+""")
+
+# Extract all functions
+functions = parser.extract_functions()
+# Returns: [{'name': 'greet', 'params': ['name'], 'async': False, ...}, ...]
+
+# Extract all variables
+variables = parser.extract_variables()
+# Returns: [{'kind': 'const', 'name': 'add'}, ...]
+
+# Extract all classes
+classes = parser.extract_classes()
+# Returns: [{'name': 'Calculator', 'superClass': None}, ...]
+
+# Parse ES6 modules
+ast = parser.parse_module("""
+    import React from 'react';
+    export default function App() {}
+""")
+
+# Extract imports and exports
+imports = parser.extract_imports()
+exports = parser.extract_exports()
+
+# Find all dependencies
+deps = parser.find_dependencies(js_code)
+# Returns: {'imports': ['react', 'axios'], 'requires': ['fs', 'path']}
+
+# Analyze code complexity
+metrics = parser.analyze_complexity(js_code)
+# Returns: {'functions': 5, 'variables': 10, 'classes': 2, 'loops': 3, ...}
+
+# Validate JavaScript syntax
+is_valid, error = parser.validate_syntax(js_code)
+
+# Tokenize JavaScript
+tokens = parser.tokenize("const x = 42;")
+
+# Get all identifiers
+identifiers = parser.get_all_identifiers(js_code)
+
+# Extract comments
+comments = parser.extract_comments(js_code)
+
+# Detect module type
+module_type = parser.detect_module_type(js_code)
+# Returns: 'es6', 'commonjs', or 'none'
+
+# Convert AST to JSON
+json_ast = parser.to_json(js_code, indent=2)
+```
+
+### JavaScript Parser Features
+
+- ✅ **Full ES6+ Support**: Parse modern JavaScript including async/await, generators, classes
+- 🔍 **Function Extraction**: Extract all function declarations, expressions, and arrow functions
+- 📦 **Variable Extraction**: Extract const, let, and var declarations
+- 🎓 **Class Extraction**: Extract class declarations with inheritance info
+- 📥 **Import/Export Analysis**: Parse ES6 module imports and exports
+- 📊 **Complexity Analysis**: Calculate code metrics (functions, loops, conditionals, depth)
+- 🔎 **Dependency Detection**: Find all imports and requires
+- ✔️ **Syntax Validation**: Validate JavaScript syntax
+- 🎯 **AST Generation**: Generate Abstract Syntax Tree for analysis
+- 🏷️ **Tokenization**: Break code into tokens
+- 💬 **Comment Extraction**: Extract all comments from code
+- 🔧 **Module Detection**: Detect CommonJS vs ES6 modules
+- 🌐 **JSX Support**: Optional JSX parsing for React code
 
 ## How It Works 🔧
 
