@@ -111,11 +111,13 @@ MiiBrowser/
 │       ├── __init__.py   # Package initialization
 │       ├── main.py       # Entry point
 │       ├── browser.py    # Main browser GUI
-│       └── search.py     # DuckDuckGo search module
+│       ├── search.py     # DuckDuckGo search module
+│       └── css_parser.py # CSS parsing utilities
 └── tests/
     ├── __init__.py       # Tests package
     ├── test_browser.py   # Browser GUI tests
-    └── test_search.py    # Search functionality tests
+    ├── test_search.py    # Search functionality tests
+    └── test_css_parser.py # CSS parser tests
 ```
 
 ## Requirements 📋
@@ -127,8 +129,67 @@ MiiBrowser/
 - Pillow>=9.0.0 (image support: JPG, PNG)
 - CairoSVG>=2.5.0 (SVG image support)
 - tkinterweb-tkhtml-extras>=1.3.0 (enhanced browser features)
+- tinycss2>=1.2.0 (full CSS parsing support)
 
 All dependencies are automatically installed when using `pip install -e .`.
+
+## CSS Parsing Capabilities 🎨
+
+MiiBrowser includes a powerful CSS parser built with `tinycss2` that provides full CSS parsing capabilities:
+
+```python
+from miibrowser import CSSParser, parse_inline_style, extract_css_colors
+
+# Parse a complete stylesheet
+parser = CSSParser()
+rules = parser.parse_stylesheet("""
+    body { background-color: #f0f0f0; margin: 0; }
+    .header { color: #333; font-size: 24px; }
+""")
+
+# Extract all colors from CSS
+colors = parser.extract_colors(css_text)
+# Returns: ['#f0f0f0', '#333']
+
+# Extract all selectors
+selectors = parser.extract_selectors(css_text)
+# Returns: ['body', '.header']
+
+# Parse inline styles
+style_dict = parse_inline_style("color: red; font-size: 16px;")
+# Returns: {'color': 'red', 'font-size': '16px'}
+
+# Extract specific properties with their selectors
+font_sizes = parser.extract_properties(css_text, "font-size")
+# Returns: [('.header', '24px')]
+
+# Get all declarations organized by selector
+all_decls = parser.get_all_declarations(css_text)
+
+# Parse media queries
+media_queries = parser.parse_media_queries(css_text)
+
+# Minify CSS
+minified = parser.minify_css(css_text)
+
+# Prettify CSS with proper indentation
+prettified = parser.prettify_css(css_text, indent="  ")
+
+# Validate CSS syntax
+is_valid, error_msg = validate_css(css_text)
+```
+
+### CSS Parser Features
+
+- ✅ **Full CSS3 Support**: Parse modern CSS syntax including nested rules
+- 🎨 **Color Extraction**: Extract all color values from stylesheets
+- 🔍 **Selector Parsing**: Get all CSS selectors from a stylesheet
+- 📋 **Declaration Extraction**: Extract specific properties with values
+- 📱 **Media Query Parsing**: Parse and extract media query conditions
+- 🗜️ **CSS Minification**: Minify CSS by removing whitespace
+- ✨ **CSS Prettification**: Format CSS with proper indentation
+- ✔️ **Validation**: Validate CSS syntax
+- 🎯 **Inline Style Parsing**: Parse HTML inline style attributes
 
 ## How It Works 🔧
 

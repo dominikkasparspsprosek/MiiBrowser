@@ -80,92 +80,97 @@ class BrowserTab:
             messages_enabled=False,  # Disable debug messages
         )
         self.html_widget.pack(fill=tk.BOTH, expand=True)
-        
-        # Start polling for URL changes
-        self._start_url_polling()
+        self._last_checked_url = None
+        self._check_pending = False
+    
+    def _on_url_changed(self, url):
+        """Called when URL changes in webview"""
+        try:
+            if url and url != self.current_url and url != "about:blank":
+                # Handle DuckDuckGo redirect URLs
+                if 'duckduckgo.com/l/?uddg=' in url:
+                    try:
+                        import urllib.parse
+                        parsed = urllib.parse.urlparse(url)
+                        params = urllib.parse.parse_qs(parsed.query)
+                        if 'uddg' in params:
+                            actual_url = urllib.parse.unquote(params['uddg'][0])
+                            self.html_widget.load_url(actual_url)
+                            return
+                    except Exception as e:
+                        print(f"Error handling DuckDuckGo redirect: {e}")
+                
+                # Update history
+                if self.history_index == len(self.history) - 1:
+                    self.history.append(url)
+                    self.history_index = len(self.history) - 1
+                elif self.history_index < len(self.history) - 1:
+                    self.history = self.history[:self.history_index + 1]
+                    self.history.append(url)
+                    self.history_index = len(self.history) - 1
+                
+                self.current_url = url
+                self._last_checked_url = url
+                # Extract domain for title
+                domain = url.split('//')[1].split('/')[0] if '//' in url else url[:30]
+                self.title = domain[:25] + "..." if len(domain) > 25 else domain
+                
+                # Trigger callback to update UI
+                if self.on_navigation_callback:
+                    self.on_navigation_callback(url, self.title)
+        except Exception as e:
+            print(f"Error in _on_url_changed: {e}")
     
     def _start_url_polling(self):
-        """Poll for URL changes in the webview"""
+        """Start URL change detection"""
         if hasattr(self, 'html_widget') and self.is_showing_web:
-            self._check_url_change()
+            self._check_url_change_fallback()
     
-    def _check_url_change(self):
-        """Check if URL has changed in webview"""
+    def _check_url_change_fallback(self):
+        """Fallback URL check - only used if event system not available"""
         try:
+            # Prevent multiple simultaneous checks
+            if self._check_pending:
+                return
+            
+            self._check_pending = True
+            
             if hasattr(self, 'html_widget') and self.is_showing_web:
-                # Try to get current URL
                 new_url = None
                 try:
                     new_url = self.html_widget.get_url()
-                except AttributeError:
-                    # tkinterweb might use different method
+                except:
                     try:
                         new_url = self.html_widget.current_url
                     except:
                         pass
                 
-                # Debug output
-                print(f"[URL Check] Current: {self.current_url}, New: {new_url}")
+                # Only trigger if URL actually changed and is different from last check
+                if new_url and new_url != self._last_checked_url and new_url != "about:blank":
+                    self._on_url_changed(new_url)
                 
-                if new_url and new_url != self.current_url and new_url != "about:blank":
-                    # Handle DuckDuckGo redirect URLs
-                    if 'duckduckgo.com/l/?uddg=' in new_url:
-                        # Extract actual destination URL from redirect
-                        try:
-                            import urllib.parse
-                            parsed = urllib.parse.urlparse(new_url)
-                            params = urllib.parse.parse_qs(parsed.query)
-                            if 'uddg' in params:
-                                actual_url = urllib.parse.unquote(params['uddg'][0])
-                                print(f"[Redirect] Detected DuckDuckGo redirect to: {actual_url}")
-                                # Load the actual URL instead of the redirect
-                                self.html_widget.load_url(actual_url)
-                                # Continue polling
-                                if self.is_showing_web:
-                                    self.parent_frame.after(500, self._check_url_change)
-                                return
-                        except Exception as e:
-                            print(f"Error handling DuckDuckGo redirect: {e}")
-                    
-                    print(f"[Navigation] URL changed to: {new_url}")
-                    
-                    # This is a navigation within the page (link click)
-                    # Add to history if this is a new forward navigation
-                    if self.history_index == len(self.history) - 1:
-                        # Forward navigation - add to history
-                        self.history.append(new_url)
-                        self.history_index = len(self.history) - 1
-                    elif self.history_index < len(self.history) - 1:
-                        # Clear forward history and add new URL
-                        self.history = self.history[:self.history_index + 1]
-                        self.history.append(new_url)
-                        self.history_index = len(self.history) - 1
-                    
-                    self.current_url = new_url
-                    # Extract domain for title
-                    domain = new_url.split('//')[1].split('/')[0] if '//' in new_url else new_url[:30]
-                    self.title = domain[:25] + "..." if len(domain) > 25 else domain
-                    
-                    # Trigger callback to update UI
-                    if self.on_navigation_callback:
-                        print(f"[Callback] Triggering navigation callback")
-                        self.on_navigation_callback(new_url, self.title)
-                
-                # Continue polling if still showing web - check every 500ms
-                if self.is_showing_web:
-                    # Schedule next check in 0.5 seconds (more responsive)
-                    if hasattr(self, 'parent_frame') and self.parent_frame.winfo_exists():
-                        self.parent_frame.after(500, self._check_url_change)
-        except Exception as e:
-            print(f"Error checking URL change: {e}")
-            # Continue polling even after errors
-            if hasattr(self, 'is_showing_web') and self.is_showing_web:
-                if hasattr(self, 'parent_frame'):
+                # Check again after 3 seconds (slow, non-interfering polling)
+                if self.is_showing_web and hasattr(self, 'parent_frame'):
                     try:
                         if self.parent_frame.winfo_exists():
-                            self.parent_frame.after(500, self._check_url_change)
+                            self.parent_frame.after(3000, self._delayed_check)
                     except:
                         pass
+            
+            self._check_pending = False
+        except Exception as e:
+            print(f"Error in fallback URL check: {e}")
+            self._check_pending = False
+    
+    def _delayed_check(self):
+        """Delayed check to avoid interference with rendering"""
+        self._check_pending = False
+        if hasattr(self, 'is_showing_web') and self.is_showing_web:
+            self._check_url_change_fallback()
+    
+    def _check_url_change(self):
+        """DEPRECATED - Use event-based _on_url_changed instead"""
+        pass
     
     def show(self):
         """Show this tab's content"""
@@ -279,7 +284,6 @@ class BrowserTab:
     
     def load_url(self, url: str):
         """Load URL in web viewer"""
-        print(f"[load_url] Loading: {url}, Tab ID: {self.tab_id}")
         if not WEBVIEW_AVAILABLE or not hasattr(self, 'webview_frame'):
             # Fallback to external browser
             import webbrowser
@@ -316,15 +320,15 @@ class BrowserTab:
         try:
             # Force the widget to load the URL
             self.html_widget.load_url(url)
-            print(f"[load_url] HTML widget loading URL: {url}")
             
             # Force frame update to ensure display
             self.webview_frame.update_idletasks()
             self.parent_frame.update_idletasks()
             
-            print(f"[load_url] Starting URL polling for tab {self.tab_id}")
-            # Start polling for URL changes (check every 500ms for better responsiveness)
-            self.parent_frame.after(500, self._check_url_change)
+            # Start URL change detection with 3-second polling
+            self._last_checked_url = url
+            self._check_pending = False
+            self.parent_frame.after(3000, self._check_url_change_fallback)
             
             return True
         except Exception as e:
@@ -599,7 +603,6 @@ class MiiBrowser:
         tab = BrowserTab(tab_id, self.tab_content_area, self.search_engine)
         tab.url_open_callback = self._open_url_in_tab
         tab.on_navigation_callback = lambda url, title: self._on_tab_navigation(tab_id, url, title)
-        print(f"[Tab Created] Tab {tab_id} - Callbacks set")
         self.tabs[tab_id] = tab
         
         # Create tab button
@@ -776,7 +779,6 @@ class MiiBrowser:
     
     def _on_tab_navigation(self, tab_id: int, url: str, title: str):
         """Called when a tab navigates to a new URL"""
-        print(f"[_on_tab_navigation] Tab {tab_id}: {url}, Title: {title}, Active: {self.active_tab_id}")
         
         # Update tab title button
         if tab_id in self.tab_buttons:
@@ -784,7 +786,6 @@ class MiiBrowser:
         
         # If this is the active tab, update the URL bar and navigation buttons
         if tab_id == self.active_tab_id:
-            print(f"[Address Bar Update] Setting to: {url}")
             self.search_entry.delete(0, tk.END)
             self.search_entry.insert(0, url)
             self._update_nav_buttons()
