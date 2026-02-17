@@ -60,7 +60,7 @@ class DuckDuckGoSearch:
             if not results:
                 results.append({
                     'title': f'Search: {query}',
-                    'url': f'https://duckduckgo.com/?q={query}',
+                    'url': f'https://html.duckduckgo.com/html/?q={query}',
                     'description': f'Click to search "{query}" on DuckDuckGo'
                 })
             

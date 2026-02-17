@@ -27,6 +27,9 @@ class BrowserTab:
         self.current_url = ""
         self.is_showing_web = False
         self.url_open_callback = None
+        self.on_navigation_callback = None
+        self.history = []
+        self.history_index = -1
         
         # Create tab content frame
         self.content_frame = tk.Frame(parent_frame, bg="#FFFFFF")
@@ -71,8 +74,79 @@ class BrowserTab:
     def _create_webview_area(self):
         """Create web viewer area"""
         self.webview_frame = tk.Frame(self.content_frame, bg="#FFFFFF")
-        self.html_widget = HtmlFrame(self.webview_frame, messages_enabled=False)
+        # Configure HtmlFrame with JavaScript and image support
+        self.html_widget = HtmlFrame(
+            self.webview_frame, 
+            messages_enabled=False,  # Disable debug messages
+        )
         self.html_widget.pack(fill=tk.BOTH, expand=True)
+        
+        # Start polling for URL changes
+        self._start_url_polling()
+    
+    def _start_url_polling(self):
+        """Poll for URL changes in the webview"""
+        if hasattr(self, 'html_widget') and self.is_showing_web:
+            self._check_url_change()
+    
+    def _check_url_change(self):
+        """Check if URL has changed in webview"""
+        try:
+            if hasattr(self, 'html_widget') and self.is_showing_web:
+                # Try to get current URL
+                try:
+                    new_url = self.html_widget.get_url()
+                except AttributeError:
+                    # tkinterweb might use different method
+                    try:
+                        new_url = self.html_widget.current_url
+                    except:
+                        new_url = None
+                
+                if new_url and new_url != self.current_url and new_url != "about:blank":
+                    # Handle DuckDuckGo redirect URLs
+                    if 'duckduckgo.com/l/?uddg=' in new_url:
+                        # Extract actual destination URL from redirect
+                        try:
+                            import urllib.parse
+                            parsed = urllib.parse.urlparse(new_url)
+                            params = urllib.parse.parse_qs(parsed.query)
+                            if 'uddg' in params:
+                                actual_url = urllib.parse.unquote(params['uddg'][0])
+                                # Load the actual URL instead of the redirect
+                                self.html_widget.load_url(actual_url)
+                                return  # Let the next poll cycle handle the actual URL
+                        except Exception as e:
+                            print(f"Error handling DuckDuckGo redirect: {e}")
+                    
+                    # This is a navigation within the page (link click)
+                    # Add to history if this is a new forward navigation
+                    if self.history_index == len(self.history) - 1:
+                        # Forward navigation - add to history
+                        self.history.append(new_url)
+                        self.history_index = len(self.history) - 1
+                    elif self.history_index < len(self.history) - 1:
+                        # Clear forward history and add new URL
+                        self.history = self.history[:self.history_index + 1]
+                        self.history.append(new_url)
+                        self.history_index = len(self.history) - 1
+                    
+                    self.current_url = new_url
+                    # Extract domain for title
+                    domain = new_url.split('//')[1].split('/')[0] if '//' in new_url else new_url[:30]
+                    self.title = domain[:25] + "..." if len(domain) > 25 else domain
+                    
+                    # Trigger callback to update UI
+                    if self.on_navigation_callback:
+                        self.on_navigation_callback(new_url, self.title)
+                
+                # Continue polling if still showing web
+                if self.is_showing_web:
+                    # Schedule next check in 1 second
+                    if hasattr(self, 'parent_frame') and self.parent_frame.winfo_exists():
+                        self.parent_frame.after(1000, self._check_url_change)
+        except Exception as e:
+            print(f"Error checking URL change: {e}")
     
     def show(self):
         """Show this tab's content"""
@@ -177,67 +251,97 @@ class BrowserTab:
     
     def _trigger_url_open(self, url):
         """Trigger URL open callback"""
-        print(f"[DEBUG] _trigger_url_open called with URL: {url}")
-        print(f"[DEBUG] url_open_callback exists: {self.url_open_callback is not None}")
-        
         if self.url_open_callback:
-            print(f"[DEBUG] Calling url_open_callback")
             self.url_open_callback(url)
         else:
-            print(f"[DEBUG] No callback, opening in external browser")
             # Fallback to external browser if callback not set
             import webbrowser
             webbrowser.open(url)
     
     def load_url(self, url: str):
         """Load URL in web viewer"""
-        print(f"[DEBUG] BrowserTab.load_url called with: {url}")
-        print(f"[DEBUG] WEBVIEW_AVAILABLE: {WEBVIEW_AVAILABLE}")
-        print(f"[DEBUG] has webview_frame: {hasattr(self, 'webview_frame')}")
-        
         if not WEBVIEW_AVAILABLE or not hasattr(self, 'webview_frame'):
             # Fallback to external browser
-            print(f"[DEBUG] No webview available, opening externally")
             import webbrowser
             webbrowser.open(url)
             return False
         
+        # Handle DuckDuckGo redirect URLs
+        if 'duckduckgo.com/l/?uddg=' in url:
+            try:
+                import urllib.parse
+                parsed = urllib.parse.urlparse(url)
+                params = urllib.parse.parse_qs(parsed.query)
+                if 'uddg' in params:
+                    url = urllib.parse.unquote(params['uddg'][0])
+            except Exception as e:
+                print(f"Error handling DuckDuckGo redirect: {e}")
+        
         self.current_url = url
+        # Add to history
+        self.history.append(url)
+        self.history_index = len(self.history) - 1
+        
         # Extract domain for title
         domain = url.split('//')[1].split('/')[0] if '//' in url else url[:30]
         self.title = domain[:25] + "..." if len(domain) > 25 else domain
         self.is_showing_web = True
         
-        # Hide search frame
+        # Hide search frame first
         self.search_frame.pack_forget()
         
-        # Show webview
+        # Show and update webview
         self.webview_frame.pack(fill=tk.BOTH, expand=True)
         
         try:
-            print(f"[DEBUG] Loading URL in html_widget")
+            # Force the widget to load the URL
             self.html_widget.load_url(url)
-            print(f"[DEBUG] URL loaded successfully")
+            
+            # Force frame update to ensure display
+            self.webview_frame.update_idletasks()
+            self.parent_frame.update_idletasks()
+            
+            # Start polling for URL changes
+            self.parent_frame.after(1000, self._check_url_change)
+            
             return True
         except Exception as e:
-            print(f"[DEBUG] Error loading URL: {e}")
+            print(f"Error loading URL: {e}")
             return False
     
     def go_back(self):
         """Go back in browser history"""
-        if WEBVIEW_AVAILABLE and hasattr(self, 'html_widget'):
-            try:
-                self.html_widget.go_back()
-            except:
-                pass
+        if WEBVIEW_AVAILABLE and hasattr(self, 'html_widget') and self.is_showing_web:
+            if self.history_index > 0:
+                self.history_index -= 1
+                url = self.history[self.history_index]
+                self.current_url = url
+                try:
+                    self.html_widget.load_url(url)
+                    # Update title
+                    domain = url.split('//')[1].split('/')[0] if '//' in url else url[:30]
+                    self.title = domain[:25] + "..." if len(domain) > 25 else domain
+                    if self.on_navigation_callback:
+                        self.on_navigation_callback(url, self.title)
+                except Exception as e:
+                    print(f"Back navigation error: {e}")
     
     def go_forward(self):
         """Go forward in browser history"""
-        if WEBVIEW_AVAILABLE and hasattr(self, 'html_widget'):
-            try:
-                self.html_widget.go_forward()
-            except:
-                pass
+        if WEBVIEW_AVAILABLE and hasattr(self, 'html_widget') and self.is_showing_web:
+            if self.history_index < len(self.history) - 1:
+                self.history_index += 1
+                url = self.history[self.history_index]
+                self.current_url = url
+                try:
+                    self.html_widget.load_url(url)
+                    # Update title
+                    domain = url.split('//')[1].split('/')[0] if '//' in url else url[:30]
+                    self.title = domain[:25] + "..." if len(domain) > 25 else domain
+                    if self.on_navigation_callback:
+                        self.on_navigation_callback(url, self.title)
+                except Exception as e:
+                    print(f"Forward navigation error: {e}")
     
     def reload(self):
         """Reload current page"""
@@ -425,21 +529,6 @@ class MiiBrowser:
         )
         fullscreen_button.pack(side=tk.LEFT, padx=2)
         
-        # Status bar
-        status_frame = tk.Frame(main_frame, bg="#F1F3F4", height=25)
-        status_frame.pack(fill=tk.X, padx=10, pady=(0, 5))
-        status_frame.pack_propagate(False)
-        
-        self.status_label = tk.Label(
-            status_frame,
-            text="Ready",
-            bg="#F1F3F4",
-            fg="#5F6368",
-            font=("Segoe UI", 9),
-            anchor=tk.W
-        )
-        self.status_label.pack(side=tk.LEFT, padx=5)
-        
         # Content area for tabs
         self.tab_content_area = tk.Frame(main_frame, bg="#FFFFFF")
         self.tab_content_area.pack(fill=tk.BOTH, expand=True, padx=10, pady=(0, 10))
@@ -469,6 +558,7 @@ class MiiBrowser:
         # Create tab object
         tab = BrowserTab(tab_id, self.tab_content_area, self.search_engine)
         tab.url_open_callback = self._open_url_in_tab
+        tab.on_navigation_callback = lambda url, title: self._on_tab_navigation(tab_id, url, title)
         self.tabs[tab_id] = tab
         
         # Create tab button
@@ -545,10 +635,11 @@ class MiiBrowser:
         if self.tabs[tab_id].is_showing_web:
             self.search_entry.delete(0, tk.END)
             self.search_entry.insert(0, self.tabs[tab_id].current_url)
-            self._enable_nav_buttons()
         else:
             self.search_entry.delete(0, tk.END)
-            self._disable_nav_buttons()
+        
+        # Update navigation button states
+        self._update_nav_buttons()
     
     def _close_tab(self, tab_id: int):
         """Close a specific tab"""
@@ -606,7 +697,6 @@ class MiiBrowser:
         query = self.search_entry.get().strip()
         
         if not query:
-            self._update_status("Please enter a search query", "#EA4335")
             return
         
         # Check if it's a URL
@@ -624,23 +714,16 @@ class MiiBrowser:
         encoded_query = urllib.parse.quote_plus(query)
         search_url = f"https://duckduckgo.com/?q={encoded_query}"
         
-        self._update_status(f"Searching for: {query}", "#4285F4")
         self._open_url_in_tab(search_url)
     
     def _open_url_in_tab(self, url: str):
         """Open URL in active tab"""
-        print(f"[DEBUG] _open_url_in_tab called with URL: {url}")
-        print(f"[DEBUG] active_tab_id: {self.active_tab_id}")
-        
         if not self.active_tab_id or not url:
-            print(f"[DEBUG] Returning early - no active tab or no URL")
             return
         
         active_tab = self.tabs[self.active_tab_id]
-        print(f"[DEBUG] Got active tab: {active_tab}")
         
         if active_tab.load_url(url):
-            print(f"[DEBUG] URL loaded successfully in tab")
             # Update tab title
             self.tab_buttons[self.active_tab_id]['button'].config(text=active_tab.title)
             
@@ -648,29 +731,36 @@ class MiiBrowser:
             self.search_entry.delete(0, tk.END)
             self.search_entry.insert(0, url)
             
-            self._update_status(f"Loading: {url}", "#4285F4")
-            self._enable_nav_buttons()
-        else:
-            print(f"[DEBUG] URL failed to load in tab, opening externally")
-            self._update_status(f"Opening externally: {url}", "#FBBC04")
+            self._update_nav_buttons()
+    
+    def _on_tab_navigation(self, tab_id: int, url: str, title: str):
+        """Called when a tab navigates to a new URL"""
+        # Update tab title button
+        if tab_id in self.tab_buttons:
+            self.tab_buttons[tab_id]['button'].config(text=title)
+        
+        # If this is the active tab, update the URL bar and navigation buttons
+        if tab_id == self.active_tab_id:
+            self.search_entry.delete(0, tk.END)
+            self.search_entry.insert(0, url)
+            self._update_nav_buttons()
     
     def _go_back(self):
         """Go back in active tab"""
         if self.active_tab_id:
             self.tabs[self.active_tab_id].go_back()
-            self._update_status("Navigated back", "#34A853")
+            self._update_nav_buttons()
     
     def _go_forward(self):
         """Go forward in active tab"""
         if self.active_tab_id:
             self.tabs[self.active_tab_id].go_forward()
-            self._update_status("Navigated forward", "#34A853")
+            self._update_nav_buttons()
     
     def _reload_page(self):
         """Reload page in active tab"""
         if self.active_tab_id:
             self.tabs[self.active_tab_id].reload()
-            self._update_status("Page reloaded", "#34A853")
     
     def _enable_nav_buttons(self):
         """Enable navigation buttons"""
@@ -684,9 +774,29 @@ class MiiBrowser:
         self.forward_button.config(state=tk.DISABLED)
         self.reload_button.config(state=tk.DISABLED)
     
-    def _update_status(self, message: str, color: str = "#5F6368"):
-        """Update status bar"""
-        self.status_label.config(text=message, fg=color)
+    def _update_nav_buttons(self):
+        """Update navigation button states based on history"""
+        if self.active_tab_id and self.active_tab_id in self.tabs:
+            tab = self.tabs[self.active_tab_id]
+            if tab.is_showing_web:
+                # Enable/disable back button
+                if tab.history_index > 0:
+                    self.back_button.config(state=tk.NORMAL)
+                else:
+                    self.back_button.config(state=tk.DISABLED)
+                
+                # Enable/disable forward button
+                if tab.history_index < len(tab.history) - 1:
+                    self.forward_button.config(state=tk.NORMAL)
+                else:
+                    self.forward_button.config(state=tk.DISABLED)
+                
+                # Always enable reload when viewing web
+                self.reload_button.config(state=tk.NORMAL)
+            else:
+                self._disable_nav_buttons()
+        else:
+            self._disable_nav_buttons()
     
     def _toggle_fullscreen(self):
         """Toggle fullscreen mode"""
