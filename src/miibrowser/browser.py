@@ -177,13 +177,27 @@ class BrowserTab:
     
     def _trigger_url_open(self, url):
         """Trigger URL open callback"""
-        if hasattr(self, 'url_open_callback') and self.url_open_callback:
+        print(f"[DEBUG] _trigger_url_open called with URL: {url}")
+        print(f"[DEBUG] url_open_callback exists: {self.url_open_callback is not None}")
+        
+        if self.url_open_callback:
+            print(f"[DEBUG] Calling url_open_callback")
             self.url_open_callback(url)
+        else:
+            print(f"[DEBUG] No callback, opening in external browser")
+            # Fallback to external browser if callback not set
+            import webbrowser
+            webbrowser.open(url)
     
     def load_url(self, url: str):
         """Load URL in web viewer"""
+        print(f"[DEBUG] BrowserTab.load_url called with: {url}")
+        print(f"[DEBUG] WEBVIEW_AVAILABLE: {WEBVIEW_AVAILABLE}")
+        print(f"[DEBUG] has webview_frame: {hasattr(self, 'webview_frame')}")
+        
         if not WEBVIEW_AVAILABLE or not hasattr(self, 'webview_frame'):
             # Fallback to external browser
+            print(f"[DEBUG] No webview available, opening externally")
             import webbrowser
             webbrowser.open(url)
             return False
@@ -201,10 +215,12 @@ class BrowserTab:
         self.webview_frame.pack(fill=tk.BOTH, expand=True)
         
         try:
+            print(f"[DEBUG] Loading URL in html_widget")
             self.html_widget.load_url(url)
+            print(f"[DEBUG] URL loaded successfully")
             return True
         except Exception as e:
-            print(f"Error loading URL: {e}")
+            print(f"[DEBUG] Error loading URL: {e}")
             return False
     
     def go_back(self):
@@ -259,6 +275,10 @@ class MiiBrowser:
         
         # Create initial tab
         self._create_new_tab()
+        
+        # Perform initial search automatically
+        self.search_entry.insert(0, "Welcome to MiiBrowser")
+        self.root.after(500, self._perform_search)  # Delay to ensure UI is ready
         
     def _setup_ui(self):
         """Setup the user interface"""
@@ -590,59 +610,37 @@ class MiiBrowser:
             return
         
         # Check if it's a URL
-        if query.startswith(('http://', 'https://')) or '.' in query and ' ' not in query:
-            # Add protocol if missing
-            if not query.startswith(('http://', 'https://')):
-                query = 'https://' + query
+        if query.startswith(('http://', 'https://')):
+            # Direct URL
             self._open_url_in_tab(query)
             return
+        elif '.' in query and ' ' not in query and not query.startswith('www.'):
+            # Looks like a domain
+            self._open_url_in_tab('https://' + query)
+            return
         
-        # Disable search button during search
-        self.search_button.config(state=tk.DISABLED, text="Searching...")
+        # It's a search query - create DuckDuckGo URL
+        import urllib.parse
+        encoded_query = urllib.parse.quote_plus(query)
+        search_url = f"https://duckduckgo.com/?q={encoded_query}"
+        
         self._update_status(f"Searching for: {query}", "#4285F4")
-        
-        # Perform search in background thread
-        thread = threading.Thread(target=self._search_thread, args=(query,))
-        thread.daemon = True
-        thread.start()
-    
-    def _search_thread(self, query: str):
-        """Background thread for searching"""
-        # Check if online
-        if not self.search_engine.is_online():
-            self.root.after(0, lambda: self._update_status("Offline - No internet connection", "#EA4335"))
-            self.root.after(0, lambda: self.search_button.config(state=tk.NORMAL, text="Search"))
-            return
-        
-        # Perform search
-        results = self.search_engine.search(query)
-        
-        # Update UI in main thread
-        self.root.after(0, lambda: self._display_results(results, query))
-    
-    def _display_results(self, results, query):
-        """Display search results in active tab"""
-        if not self.active_tab_id:
-            return
-        
-        active_tab = self.tabs[self.active_tab_id]
-        active_tab.display_search_results(results, query)
-        
-        # Update tab title
-        self.tab_buttons[self.active_tab_id]['button'].config(text=active_tab.title)
-        
-        self._update_status(f"Found {len(results)} results", "#34A853")
-        self.search_button.config(state=tk.NORMAL, text="Search")
-        self._disable_nav_buttons()
+        self._open_url_in_tab(search_url)
     
     def _open_url_in_tab(self, url: str):
         """Open URL in active tab"""
+        print(f"[DEBUG] _open_url_in_tab called with URL: {url}")
+        print(f"[DEBUG] active_tab_id: {self.active_tab_id}")
+        
         if not self.active_tab_id or not url:
+            print(f"[DEBUG] Returning early - no active tab or no URL")
             return
         
         active_tab = self.tabs[self.active_tab_id]
+        print(f"[DEBUG] Got active tab: {active_tab}")
         
         if active_tab.load_url(url):
+            print(f"[DEBUG] URL loaded successfully in tab")
             # Update tab title
             self.tab_buttons[self.active_tab_id]['button'].config(text=active_tab.title)
             
@@ -653,6 +651,7 @@ class MiiBrowser:
             self._update_status(f"Loading: {url}", "#4285F4")
             self._enable_nav_buttons()
         else:
+            print(f"[DEBUG] URL failed to load in tab, opening externally")
             self._update_status(f"Opening externally: {url}", "#FBBC04")
     
     def _go_back(self):
