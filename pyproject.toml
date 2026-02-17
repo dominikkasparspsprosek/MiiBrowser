@@ -25,6 +25,7 @@ classifiers = [
 keywords = ["browser", "duckduckgo", "search", "tkinter", "gui"]
 dependencies = [
     "requests>=2.31.0",
+    "tkinterweb>=3.18.0",
 ]
 
 [project.optional-dependencies]
