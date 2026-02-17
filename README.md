@@ -1,19 +1,26 @@
 # MiiBrowser 🌐
 
-A modern Chrome-style Python browser with tabbed interface, embedded web viewing, and DuckDuckGo search integration. Features full browsing capabilities with history tracking, image support, and a clean UI.
+A modern Chrome-style Python browser powered by **full Chromium engine** (via pywebview). Features tabbed interface, complete JavaScript support, cookies, and all modern web capabilities including Google Maps!
 
 ## Features ✨
 
 - 🔍 **DuckDuckGo Search**: Direct search integration with automatic redirect handling
 - 🗂️ **Chrome-Style Tabs**: Multiple independent tabs with easy switching
-- 🌐 **Embedded Web Viewer**: Browse websites directly within the app using tkinterweb
-- 🖼️ **Full Image Support**: Display JPG, PNG, and SVG images within web pages
+- 🌐 **Full Chromium Engine**: Complete web browsing with pywebview (Edge WebView2 on Windows)
+- ⚡ **JavaScript Support**: Full ES6+ JavaScript execution - all modern sites work!
+- 🍪 **Cookie Management**: Session and persistent cookies for logged-in states
+- 🗺️ **Google Maps Compatible**: Google Maps and all interactive web apps work perfectly
+- 🎨 **WebGL & Canvas**: Full support for 3D graphics, Canvas API, and modern rendering
+- 📱 **Modern Web APIs**: localStorage, WebSockets, Geolocation, Service Workers, and more
+- 🖼️ **Full Image Support**: Display all image formats including JPG, PNG, SVG, WebP
 - ⏮️ **Navigation Controls**: Back, forward, and reload buttons with history tracking
 - 🔄 **Smart URL Handling**: Automatic detection of URLs vs search queries
 - 🎨 **Modern UI**: Clean, Google-inspired design with intuitive controls
 - ⛶ **Fullscreen Mode**: Toggle fullscreen with F11 or the fullscreen button
 - 🖱️ **Link Navigation**: Click links within pages to navigate seamlessly
 - ⌨️ **Keyboard Shortcuts**: Quick access to common functions
+- 🎯 **CSS Parser**: Full CSS3 parsing with tinycss2 for advanced stylesheet analysis
+- 🔧 **JavaScript Parser**: Complete ECMAScript parsing with esprima for code analysis
 
 ## Installation 📦
 
@@ -44,10 +51,10 @@ pip install -r requirements.txt
 - Python 3.7 or higher
 - tkinter (usually included with Python)
 - requests>=2.31.0 (HTTP requests)
-- tkinterweb>=3.18.0 (embedded web browser)
-- Pillow>=9.0.0 (image support: JPG, PNG)
-- CairoSVG>=2.5.0 (SVG image support)
-- tkinterweb-tkhtml-extras>=1.3.0 (enhanced browser features)
+- pywebview>=6.0.0 (Chromium-based web browser)
+- Pillow>=9.0.0 (image support)
+- tinycss2>=1.2.0 (CSS parsing)
+- esprima>=4.0.0 (JavaScript parsing)
 
 All dependencies are automatically installed when using `pip install -e .`.
 
@@ -74,19 +81,38 @@ python miibrowser/browser.py
 ### Quick Start
 
 1. **Search**: Type any query in the address bar and press Enter
-2. **Navigate**: Enter a URL (e.g., `github.com`) and press Enter
-3. **Browse**: Click links within pages to navigate
+2. **Navigate**: Enter a URL (e.g., `github.com` or `maps.google.com`) and press Enter
+3. **Browse**: Web pages open in separate Chromium windows with full functionality
 4. **New Tab**: Click the `+` button or press `Ctrl+T`
 5. **History**: Use the back `◄` and forward `►` buttons to navigate history
 
+### Try These Sites (All Work Perfectly!)
+
+- **Google Maps**: `maps.google.com` ✅
+- **YouTube**: `youtube.com` ✅
+- **Google Docs**: `docs.google.com` ✅
+- **Complex Web Apps**: Any modern JavaScript site ✅
+
 ## Keyboard Shortcuts ⌨️
 
-- **F11**: Toggle fullscreen mode
-- **Escape**: Exit fullscreen mode
-- **Enter**: Navigate to URL or perform search (when in address bar)
+### Navigation
+
+- **Alt+←**: Go back
+- **Alt+→**: Go forward
+- **Ctrl+R / F5**: Reload page
+- **Ctrl+L / Ctrl+K**: Focus address bar
+
+### Tab Management
+
 - **Ctrl+T**: Open new tab
 - **Ctrl+W**: Close current tab
 - **Ctrl+Tab**: Switch to next tab
+- **Ctrl+Shift+Tab**: Switch to previous tab
+
+### Window Controls
+
+- **F11**: Toggle fullscreen mode
+- **Escape**: Exit fullscreen mode
 
 ## Navigation Controls 🧭
 
@@ -106,35 +132,23 @@ MiiBrowser/
 ├── README.md             # This file
 ├── requirements.txt      # Python dependencies
 ├── setup.py             # Legacy setup (kept for compatibility)
+├── CHROMIUM_UPGRADE.md   # Detailed upgrade documentation
 ├── src/
 │   └── miibrowser/
 │       ├── __init__.py   # Package initialization
 │       ├── main.py       # Entry point
-│       ├── browser.py    # Main browser GUI
+│       ├── browser.py    # Main browser GUI (Chromium-powered)
+│       ├── browser_backup.py # Original tkinterweb version (backup)
 │       ├── search.py     # DuckDuckGo search module
-│       ├── css_parser.py # CSS parsing utilities
-│       └── js_parser.py  # JavaScript parsing utilities
+│       ├── css_parser.py # Full CSS3 parser with tinycss2
+│       └── js_parser.py  # Full ECMAScript parser with esprima
 └── tests/
     ├── __init__.py       # Tests package
     ├── test_browser.py   # Browser GUI tests
     ├── test_search.py    # Search functionality tests
-    ├── test_css_parser.py # CSS parser tests
-    └── test_js_parser.py  # JavaScript parser tests
+    ├── test_css_parser.py # CSS parser tests (41 tests)
+    └── test_js_parser.py  # JavaScript parser tests (57 tests)
 ```
-
-## Requirements 📋
-
-- Python 3.7 or higher
-- tkinter (usually included with Python)
-- requests>=2.31.0 (HTTP requests)
-- tkinterweb>=3.18.0 (embedded web browser)
-- Pillow>=9.0.0 (image support: JPG, PNG)
-- CairoSVG>=2.5.0 (SVG image support)
-- tkinterweb-tkhtml-extras>=1.3.0 (enhanced browser features)
-- tinycss2>=1.2.0 (full CSS parsing support)
-- esprima>=4.0.0 (full JavaScript parsing support)
-
-All dependencies are automatically installed when using `pip install -e .`.
 
 ## CSS Parsing Capabilities 🎨
 
