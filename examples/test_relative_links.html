@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="en">
+	<head>
+		<meta charset="UTF-8" />
+		<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+		<title>Relative Links Test</title>
+	</head>
+	<body>
+		<h1>Relative Links Test Page</h1>
+
+		<h2>Test Links:</h2>
+		<ul>
+			<li><a href="/search">Absolute path (starts with /)</a></li>
+			<li><a href="about.html">Relative path (same directory)</a></li>
+			<li><a href="../index.html">Parent directory</a></li>
+			<li><a href="https://www.example.com">Absolute URL (https)</a></li>
+			<li><a href="http://www.example.com">Absolute URL (http)</a></li>
+		</ul>
+
+		<h2>Explanation:</h2>
+		<p>
+			The <code>&lt;base&gt;</code> tag in the document head tells the browser
+			how to resolve relative URLs. Without it, relative paths like
+			<code>/search</code> would be resolved as
+			<code>file:///C:/Users/.../search</code> instead of
+			<code>https://example.com/search</code>.
+		</p>
+
+		<h2>How to Test:</h2>
+		<ol>
+			<li
+				>Load this page from a real website (e.g., upload to a test server)</li
+			>
+			<li
+				>Or use a Python HTTP server:
+				<code>python -m http.server 8000</code></li
+			>
+			<li>Click the relative links above</li>
+			<li>They should resolve correctly based on the current page's URL</li>
+		</ol>
+
+		<div
+			style="
+				background-color: #f0f0f0;
+				padding: 20px;
+				margin-top: 20px;
+				border-radius: 5px;
+			"
+		>
+			<h3>Current Page Details:</h3>
+			<p><strong>Document URL:</strong> <span id="docUrl"></span></p>
+			<p><strong>Document Base URI:</strong> <span id="baseUri"></span></p>
+		</div>
+
+		<script>
+			// Display current URL info
+			document.getElementById("docUrl").textContent = document.URL;
+			document.getElementById("baseUri").textContent = document.baseURI;
+		</script>
+	</body>
+</html>

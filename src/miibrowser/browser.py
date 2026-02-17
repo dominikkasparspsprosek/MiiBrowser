@@ -322,6 +322,8 @@ class BrowserTab:
             # Try to fetch and enhance the HTML content
             try:
                 import requests
+                from urllib.parse import urljoin, urlparse
+                
                 response = requests.get(url, timeout=10, headers={
                     'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
                 })
@@ -329,16 +331,21 @@ class BrowserTab:
                 if response.status_code == 200:
                     html_content = response.text
                     
-                    # Inject enhanced CSS into the HTML
-                    enhanced_css = f"<style>{get_enhanced_css()}</style>"
+                    # Get the base URL for relative links (handle redirects)
+                    base_url = response.url if response.url else url
                     
-                    # Try to inject CSS after <head> tag or at the beginning
+                    # Inject enhanced CSS and base tag into the HTML
+                    enhanced_css = f"<style>{get_enhanced_css()}</style>"
+                    base_tag = f'<base href="{base_url}">'
+                    enhanced_head = f'{base_tag}{enhanced_css}'
+                    
+                    # Try to inject CSS and base tag after <head> tag or at the beginning
                     if '<head>' in html_content.lower():
-                        html_content = html_content.replace('<head>', f'<head>{enhanced_css}', 1)
+                        html_content = html_content.replace('<head>', f'<head>{enhanced_head}', 1)
                     elif '<html>' in html_content.lower():
-                        html_content = html_content.replace('<html>', f'<html><head>{enhanced_css}</head>', 1)
+                        html_content = html_content.replace('<html>', f'<html><head>{enhanced_head}</head>', 1)
                     else:
-                        html_content = f'<html><head>{enhanced_css}</head><body>{html_content}</body></html>'
+                        html_content = f'<html><head>{enhanced_head}</head><body>{html_content}</body></html>'
                     
                     # Load the enhanced HTML
                     self.html_widget.load_html(html_content)
