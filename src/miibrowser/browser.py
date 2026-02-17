@@ -94,6 +94,7 @@ class BrowserTab:
         try:
             if hasattr(self, 'html_widget') and self.is_showing_web:
                 # Try to get current URL
+                new_url = None
                 try:
                     new_url = self.html_widget.get_url()
                 except AttributeError:
@@ -101,7 +102,10 @@ class BrowserTab:
                     try:
                         new_url = self.html_widget.current_url
                     except:
-                        new_url = None
+                        pass
+                
+                # Debug output
+                print(f"[URL Check] Current: {self.current_url}, New: {new_url}")
                 
                 if new_url and new_url != self.current_url and new_url != "about:blank":
                     # Handle DuckDuckGo redirect URLs
@@ -113,11 +117,17 @@ class BrowserTab:
                             params = urllib.parse.parse_qs(parsed.query)
                             if 'uddg' in params:
                                 actual_url = urllib.parse.unquote(params['uddg'][0])
+                                print(f"[Redirect] Detected DuckDuckGo redirect to: {actual_url}")
                                 # Load the actual URL instead of the redirect
                                 self.html_widget.load_url(actual_url)
-                                return  # Let the next poll cycle handle the actual URL
+                                # Continue polling
+                                if self.is_showing_web:
+                                    self.parent_frame.after(500, self._check_url_change)
+                                return
                         except Exception as e:
                             print(f"Error handling DuckDuckGo redirect: {e}")
+                    
+                    print(f"[Navigation] URL changed to: {new_url}")
                     
                     # This is a navigation within the page (link click)
                     # Add to history if this is a new forward navigation
@@ -138,15 +148,24 @@ class BrowserTab:
                     
                     # Trigger callback to update UI
                     if self.on_navigation_callback:
+                        print(f"[Callback] Triggering navigation callback")
                         self.on_navigation_callback(new_url, self.title)
                 
-                # Continue polling if still showing web
+                # Continue polling if still showing web - check every 500ms
                 if self.is_showing_web:
-                    # Schedule next check in 1 second
+                    # Schedule next check in 0.5 seconds (more responsive)
                     if hasattr(self, 'parent_frame') and self.parent_frame.winfo_exists():
-                        self.parent_frame.after(1000, self._check_url_change)
+                        self.parent_frame.after(500, self._check_url_change)
         except Exception as e:
             print(f"Error checking URL change: {e}")
+            # Continue polling even after errors
+            if hasattr(self, 'is_showing_web') and self.is_showing_web:
+                if hasattr(self, 'parent_frame'):
+                    try:
+                        if self.parent_frame.winfo_exists():
+                            self.parent_frame.after(500, self._check_url_change)
+                    except:
+                        pass
     
     def show(self):
         """Show this tab's content"""
@@ -260,6 +279,7 @@ class BrowserTab:
     
     def load_url(self, url: str):
         """Load URL in web viewer"""
+        print(f"[load_url] Loading: {url}, Tab ID: {self.tab_id}")
         if not WEBVIEW_AVAILABLE or not hasattr(self, 'webview_frame'):
             # Fallback to external browser
             import webbrowser
@@ -296,13 +316,15 @@ class BrowserTab:
         try:
             # Force the widget to load the URL
             self.html_widget.load_url(url)
+            print(f"[load_url] HTML widget loading URL: {url}")
             
             # Force frame update to ensure display
             self.webview_frame.update_idletasks()
             self.parent_frame.update_idletasks()
             
-            # Start polling for URL changes
-            self.parent_frame.after(1000, self._check_url_change)
+            print(f"[load_url] Starting URL polling for tab {self.tab_id}")
+            # Start polling for URL changes (check every 500ms for better responsiveness)
+            self.parent_frame.after(500, self._check_url_change)
             
             return True
         except Exception as e:
@@ -577,6 +599,7 @@ class MiiBrowser:
         tab = BrowserTab(tab_id, self.tab_content_area, self.search_engine)
         tab.url_open_callback = self._open_url_in_tab
         tab.on_navigation_callback = lambda url, title: self._on_tab_navigation(tab_id, url, title)
+        print(f"[Tab Created] Tab {tab_id} - Callbacks set")
         self.tabs[tab_id] = tab
         
         # Create tab button
@@ -753,12 +776,15 @@ class MiiBrowser:
     
     def _on_tab_navigation(self, tab_id: int, url: str, title: str):
         """Called when a tab navigates to a new URL"""
+        print(f"[_on_tab_navigation] Tab {tab_id}: {url}, Title: {title}, Active: {self.active_tab_id}")
+        
         # Update tab title button
         if tab_id in self.tab_buttons:
             self.tab_buttons[tab_id]['button'].config(text=title)
         
         # If this is the active tab, update the URL bar and navigation buttons
         if tab_id == self.active_tab_id:
+            print(f"[Address Bar Update] Setting to: {url}")
             self.search_entry.delete(0, tk.END)
             self.search_entry.insert(0, url)
             self._update_nav_buttons()
