@@ -677,9 +677,21 @@ class MiiBrowser:
         if query.startswith(('http://', 'https://')):
             self._open_url_in_tab(query)
             return
-        elif query.startswith('www.') or ('.' in query and ' ' not in query):
+        elif query.startswith('www.'):
             self._open_url_in_tab('https://' + query)
             return
+        elif '.' in query and ' ' not in query:
+            # Check if the part after the last dot looks like a valid TLD
+            tld = query.rsplit('.', 1)[-1].lower().split('/')[0]
+            common_tlds = {
+                'com', 'org', 'net', 'edu', 'gov', 'io', 'co', 'us', 'uk',
+                'de', 'fr', 'it', 'es', 'nl', 'ru', 'cn', 'jp', 'br', 'au',
+                'ca', 'in', 'eu', 'info', 'biz', 'cz', 'sk', 'pl', 'at',
+                'ch', 'me', 'tv', 'cc', 'dev', 'app', 'xyz',
+            }
+            if tld in common_tlds:
+                self._open_url_in_tab('https://' + query)
+                return
         
         # It's a search query - create DuckDuckGo URL
         encoded_query = urllib.parse.quote_plus(query)
