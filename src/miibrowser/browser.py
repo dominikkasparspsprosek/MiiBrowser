@@ -380,9 +380,8 @@ class MiiBrowser:
         # Create initial tab
         self._create_new_tab()
         
-        # Perform initial search automatically
-        self.search_entry.insert(0, "Welcome to MiiBrowser")
-        self.root.after(500, self._perform_search)  # Delay to ensure UI is ready
+        # Focus on search entry
+        self.root.after(100, lambda: self.search_entry.focus_set())
         
     def _setup_ui(self):
         """Setup the user interface"""
@@ -544,11 +543,30 @@ class MiiBrowser:
         
     def _setup_keybindings(self):
         """Setup keyboard shortcuts"""
+        # Window controls
         self.root.bind('<F11>', lambda e: self._toggle_fullscreen())
         self.root.bind('<Escape>', lambda e: self._exit_fullscreen())
+        
+        # Tab management
         self.root.bind('<Control-t>', lambda e: self._create_new_tab())
         self.root.bind('<Control-w>', lambda e: self._close_active_tab())
         self.root.bind('<Control-Tab>', lambda e: self._next_tab())
+        self.root.bind('<Control-Shift-Tab>', lambda e: self._previous_tab())
+        
+        # Navigation
+        self.root.bind('<Alt-Left>', lambda e: self._go_back())
+        self.root.bind('<Alt-Right>', lambda e: self._go_forward())
+        self.root.bind('<Control-r>', lambda e: self._reload_page())
+        self.root.bind('<F5>', lambda e: self._reload_page())
+        
+        # Address bar
+        self.root.bind('<Control-l>', lambda e: self._focus_address_bar())
+        self.root.bind('<Control-k>', lambda e: self._focus_address_bar())
+        
+        # Other Chrome shortcuts
+        self.root.bind('<Control-plus>', lambda e: self._zoom_in())
+        self.root.bind('<Control-minus>', lambda e: self._zoom_out())
+        self.root.bind('<Control-0>', lambda e: self._reset_zoom())
     
     def _create_new_tab(self):
         """Create a new tab"""
@@ -808,6 +826,24 @@ class MiiBrowser:
         if self.is_fullscreen:
             self.is_fullscreen = False
             self.root.attributes('-fullscreen', False)
+    
+    def _focus_address_bar(self):
+        """Focus on address bar and select all text"""
+        self.search_entry.focus_set()
+        self.search_entry.select_range(0, tk.END)
+        self.search_entry.icursor(tk.END)
+    
+    def _zoom_in(self):
+        """Zoom in (placeholder - tkinterweb doesn't support zoom)"""
+        pass
+    
+    def _zoom_out(self):
+        """Zoom out (placeholder - tkinterweb doesn't support zoom)"""
+        pass
+    
+    def _reset_zoom(self):
+        """Reset zoom (placeholder - tkinterweb doesn't support zoom)"""
+        pass
     
     def run(self):
         """Start the browser application"""
