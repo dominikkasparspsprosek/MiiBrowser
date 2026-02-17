@@ -9,11 +9,12 @@ with open("requirements.txt", "r", encoding="utf-8") as fh:
 setup(
     name="miibrowser",
     version="1.0.0",
-    author="MiiBrowser Team",
-    description="A simple web browser with DuckDuckGo search capabilities",
+    author="Dominik Kaspar",
+    description="A modern Python desktop browser with DuckDuckGo search and tabbed browsing",
     long_description=long_description,
     long_description_content_type="text/markdown",
-    packages=find_packages(),
+    packages=find_packages(where="src"),
+    package_dir={"": "src"},
     classifiers=[
         "Programming Language :: Python :: 3",
         "Programming Language :: Python :: 3.7",

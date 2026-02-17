@@ -4,8 +4,8 @@ MiiBrowser - Chrome-style browser with tabs and DuckDuckGo search
 
 import tkinter as tk
 from tkinter import ttk
-from typing import Optional, Dict, List
-import threading
+import urllib.parse
+from typing import Optional, Dict
 from miibrowser.search import DuckDuckGoSearch
 from miibrowser.css_enhancer import get_enhanced_css
 from miibrowser import config
@@ -28,7 +28,6 @@ class BrowserTab:
         self.title = "New Tab"
         self.current_url = ""
         self.is_showing_web = False
-        self.url_open_callback = None
         self.on_navigation_callback = None
         self.history = []
         self.history_index = -1
@@ -92,7 +91,6 @@ class BrowserTab:
                 # Handle DuckDuckGo redirect URLs
                 if 'duckduckgo.com/l/?uddg=' in url:
                     try:
-                        import urllib.parse
                         parsed = urllib.parse.urlparse(url)
                         params = urllib.parse.parse_qs(parsed.query)
                         if 'uddg' in params:
@@ -151,11 +149,11 @@ class BrowserTab:
                 if new_url and new_url != self._last_checked_url and new_url != "about:blank":
                     self._on_url_changed(new_url)
                 
-                # Check again after 3 seconds (slow, non-interfering polling)
+                # Check again after 1.5 seconds for responsive URL tracking
                 if self.is_showing_web and hasattr(self, 'parent_frame'):
                     try:
                         if self.parent_frame.winfo_exists():
-                            self.parent_frame.after(3000, self._delayed_check)
+                            self.parent_frame.after(1500, self._delayed_check)
                     except:
                         pass
             
@@ -170,10 +168,6 @@ class BrowserTab:
         if hasattr(self, 'is_showing_web') and self.is_showing_web:
             self._check_url_change_fallback()
     
-    def _check_url_change(self):
-        """DEPRECATED - Use event-based _on_url_changed instead"""
-        pass
-    
     def show(self):
         """Show this tab's content"""
         self.content_frame.pack(fill=tk.BOTH, expand=True)
@@ -181,108 +175,6 @@ class BrowserTab:
     def hide(self):
         """Hide this tab's content"""
         self.content_frame.pack_forget()
-    
-    def display_search_results(self, results: List[Dict], query: str):
-        """Display search results in this tab"""
-        self.title = f"{query[:20]}..."
-        self.is_showing_web = False
-        
-        # Hide webview if showing
-        if WEBVIEW_AVAILABLE and hasattr(self, 'webview_frame'):
-            self.webview_frame.pack_forget()
-        
-        # Show search frame
-        self.search_frame.pack(fill=tk.BOTH, expand=True)
-        
-        # Clear previous results
-        for widget in self.scrollable_frame.winfo_children():
-            widget.destroy()
-        
-        # Define color palette (Google-like colors)
-        colors = [
-            {"bg": "#4285F4", "fg": "#FFFFFF"},  # Google Blue
-            {"bg": "#EA4335", "fg": "#FFFFFF"},  # Google Red
-            {"bg": "#FBBC04", "fg": "#000000"},  # Google Yellow
-            {"bg": "#34A853", "fg": "#FFFFFF"},  # Google Green
-            {"bg": "#5F6368", "fg": "#FFFFFF"},  # Grey
-            {"bg": "#8AB4F8", "fg": "#000000"},  # Light Blue
-            {"bg": "#FDD663", "fg": "#000000"},  # Light Yellow
-            {"bg": "#81C995", "fg": "#000000"},  # Light Green
-        ]
-        
-        for idx, result in enumerate(results):
-            color = colors[idx % len(colors)]
-            
-            # Create result frame
-            result_frame = tk.Frame(
-                self.scrollable_frame,
-                bg=color["bg"],
-                relief=tk.FLAT,
-                borderwidth=0
-            )
-            result_frame.pack(fill=tk.X, padx=15, pady=10)
-            
-            # Inner padding frame
-            inner_frame = tk.Frame(result_frame, bg=color["bg"])
-            inner_frame.pack(fill=tk.BOTH, padx=15, pady=15)
-            
-            # Title
-            title_label = tk.Label(
-                inner_frame,
-                text=result['title'],
-                bg=color["bg"],
-                fg=color["fg"],
-                font=("Segoe UI", 16, "bold"),
-                wraplength=1300,
-                anchor=tk.W,
-                justify=tk.LEFT
-            )
-            title_label.pack(fill=tk.X, pady=(0, 8))
-            
-            # URL (if available)
-            if result['url']:
-                url_label = tk.Label(
-                    inner_frame,
-                    text=result['url'],
-                    bg=color["bg"],
-                    fg="#E8F0FE" if color["fg"] == "#FFFFFF" else "#1A73E8",
-                    font=("Segoe UI", 10),
-                    wraplength=1300,
-                    anchor=tk.W,
-                    justify=tk.LEFT,
-                    cursor="hand2"
-                )
-                url_label.pack(fill=tk.X, pady=(0, 8))
-                
-                # Make URL clickable
-                url_label.bind("<Button-1>", lambda e, url=result['url']: self._trigger_url_open(url))
-                url_label.bind("<Enter>", lambda e, lbl=url_label: lbl.config(font=("Segoe UI", 10, "underline")))
-                url_label.bind("<Leave>", lambda e, lbl=url_label: lbl.config(font=("Segoe UI", 10)))
-            
-            # Description
-            desc_label = tk.Label(
-                inner_frame,
-                text=result['description'][:400] + ('...' if len(result['description']) > 400 else ''),
-                bg=color["bg"],
-                fg=color["fg"],
-                font=("Segoe UI", 11),
-                wraplength=1300,
-                anchor=tk.W,
-                justify=tk.LEFT
-            )
-            desc_label.pack(fill=tk.X)
-        
-        # Scroll to top
-        self.canvas.yview_moveto(0)
-    
-    def _trigger_url_open(self, url):
-        """Trigger URL open callback"""
-        if self.url_open_callback:
-            self.url_open_callback(url)
-        else:
-            # Fallback to external browser if callback not set
-            import webbrowser
-            webbrowser.open(url)
     
     def load_url(self, url: str):
         """Load URL in web viewer with enhanced CSS support"""
@@ -295,7 +187,6 @@ class BrowserTab:
         # Handle DuckDuckGo redirect URLs
         if 'duckduckgo.com/l/?uddg=' in url:
             try:
-                import urllib.parse
                 parsed = urllib.parse.urlparse(url)
                 params = urllib.parse.parse_qs(parsed.query)
                 if 'uddg' in params:
@@ -322,10 +213,9 @@ class BrowserTab:
         try:
             # Check if CSS enhancement is enabled (configured in config.py)
             if config.ENABLE_CSS_ENHANCEMENT:
-                # Try to fetch and enhance the HTML content
                 try:
                     import requests
-                    from urllib.parse import urljoin, urlparse
+                    from urllib.parse import urljoin
                     
                     response = requests.get(url, timeout=config.REQUEST_TIMEOUT, headers={
                         'User-Agent': config.USER_AGENT
@@ -373,7 +263,7 @@ class BrowserTab:
             # Start URL change detection with 3-second polling
             self._last_checked_url = url
             self._check_pending = False
-            self.parent_frame.after(3000, self._check_url_change_fallback)
+            self.parent_frame.after(1500, self._check_url_change_fallback)
             
             return True
         except Exception as e:
@@ -548,9 +438,10 @@ class MiiBrowser:
         # Search icon
         search_icon = tk.Label(
             entry_frame,
-            text="🔍",
+            text="Search",
             bg="#E8EAED",
-            font=("Segoe UI", 12)
+            fg="#5F6368",
+            font=("Segoe UI", 9)
         )
         search_icon.pack(side=tk.LEFT, padx=(8, 5))
         
@@ -587,7 +478,7 @@ class MiiBrowser:
         # Fullscreen button
         fullscreen_button = tk.Button(
             address_frame,
-            text="⛶",
+            text="[ ]",
             command=self._toggle_fullscreen,
             bg="#FFFFFF",
             fg="#5F6368",
@@ -634,11 +525,6 @@ class MiiBrowser:
         self.root.bind('<Control-l>', lambda e: self._focus_address_bar())
         self.root.bind('<Control-k>', lambda e: self._focus_address_bar())
         
-        # Other Chrome shortcuts
-        self.root.bind('<Control-plus>', lambda e: self._zoom_in())
-        self.root.bind('<Control-minus>', lambda e: self._zoom_out())
-        self.root.bind('<Control-0>', lambda e: self._reset_zoom())
-    
     def _create_new_tab(self):
         """Create a new tab"""
         tab_id = self.next_tab_id
@@ -646,7 +532,6 @@ class MiiBrowser:
         
         # Create tab object
         tab = BrowserTab(tab_id, self.tab_content_area, self.search_engine)
-        tab.url_open_callback = self._open_url_in_tab
         tab.on_navigation_callback = lambda url, title: self._on_tab_navigation(tab_id, url, title)
         self.tabs[tab_id] = tab
         
@@ -790,16 +675,25 @@ class MiiBrowser:
         
         # Check if it's a URL
         if query.startswith(('http://', 'https://')):
-            # Direct URL
             self._open_url_in_tab(query)
             return
-        elif '.' in query and ' ' not in query and not query.startswith('www.'):
-            # Looks like a domain
+        elif query.startswith('www.'):
             self._open_url_in_tab('https://' + query)
             return
+        elif '.' in query and ' ' not in query:
+            # Check if the part after the last dot looks like a valid TLD
+            tld = query.rsplit('.', 1)[-1].lower().split('/')[0]
+            common_tlds = {
+                'com', 'org', 'net', 'edu', 'gov', 'io', 'co', 'us', 'uk',
+                'de', 'fr', 'it', 'es', 'nl', 'ru', 'cn', 'jp', 'br', 'au',
+                'ca', 'in', 'eu', 'info', 'biz', 'cz', 'sk', 'pl', 'at',
+                'ch', 'me', 'tv', 'cc', 'dev', 'app', 'xyz',
+            }
+            if tld in common_tlds:
+                self._open_url_in_tab('https://' + query)
+                return
         
         # It's a search query - create DuckDuckGo URL
-        import urllib.parse
         encoded_query = urllib.parse.quote_plus(query)
         search_url = f"https://duckduckgo.com/?q={encoded_query}"
         
@@ -852,12 +746,6 @@ class MiiBrowser:
         if self.active_tab_id:
             self.tabs[self.active_tab_id].reload()
     
-    def _enable_nav_buttons(self):
-        """Enable navigation buttons"""
-        self.back_button.config(state=tk.NORMAL)
-        self.forward_button.config(state=tk.NORMAL)
-        self.reload_button.config(state=tk.NORMAL)
-    
     def _disable_nav_buttons(self):
         """Disable navigation buttons"""
         self.back_button.config(state=tk.DISABLED)
@@ -904,18 +792,6 @@ class MiiBrowser:
         self.search_entry.focus_set()
         self.search_entry.select_range(0, tk.END)
         self.search_entry.icursor(tk.END)
-    
-    def _zoom_in(self):
-        """Zoom in (placeholder - tkinterweb doesn't support zoom)"""
-        pass
-    
-    def _zoom_out(self):
-        """Zoom out (placeholder - tkinterweb doesn't support zoom)"""
-        pass
-    
-    def _reset_zoom(self):
-        """Reset zoom (placeholder - tkinterweb doesn't support zoom)"""
-        pass
     
     def run(self):
         """Start the browser application"""
