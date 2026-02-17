@@ -5,6 +5,3 @@ Pillow>=9.0.0
 CairoSVG>=2.5.0
 tkinterweb-tkhtml-extras>=1.3.0
 tinycss2>=1.2.0
-esprima>=4.0.0
-# Optional: pywebview (for separate window Chromium support)
-# pywebview>=6.0.0
