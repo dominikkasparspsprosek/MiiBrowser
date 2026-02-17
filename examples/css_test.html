@@ -1,0 +1,248 @@
+<!doctype html>
+<html lang="en">
+	<head>
+		<meta charset="UTF-8" />
+		<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+		<title>CSS Enhancement Test - MiiBrowser</title>
+	</head>
+	<body>
+		<div class="container">
+			<h1 class="text-primary text-center">CSS Enhancement Test</h1>
+			<p class="text-center">Testing enhanced CSS support in MiiBrowser!</p>
+
+			<hr />
+
+			<h2>Color Support</h2>
+			<div style="padding: 20px">
+				<div
+					style="
+						color: #ff0000;
+						background-color: #ffeeee;
+						padding: 10px;
+						margin: 5px;
+					"
+				>
+					Red text on light red background (inline style)
+				</div>
+				<div class="text-primary bg-light" style="padding: 10px; margin: 5px">
+					Primary text on light background (class)
+				</div>
+				<div
+					class="text-success bg-white"
+					style="padding: 10px; margin: 5px; border: 2px solid green"
+				>
+					Success text on white background
+				</div>
+				<div
+					style="
+						color: white;
+						background-color: #333;
+						padding: 10px;
+						margin: 5px;
+					"
+				>
+					White text on dark background
+				</div>
+			</div>
+
+			<h2>Width and Height</h2>
+			<div style="padding: 20px">
+				<div
+					class="w-25 bg-primary"
+					style="height: 50px; color: white; padding: 10px"
+				>
+					25% Width
+				</div>
+				<div
+					class="w-50 bg-success"
+					style="height: 50px; color: white; padding: 10px; margin-top: 5px"
+				>
+					50% Width
+				</div>
+				<div
+					class="w-75 bg-warning"
+					style="height: 50px; padding: 10px; margin-top: 5px"
+				>
+					75% Width
+				</div>
+				<div
+					class="w-100 bg-info"
+					style="height: 50px; color: white; padding: 10px; margin-top: 5px"
+				>
+					100% Width
+				</div>
+			</div>
+
+			<h2>Position and Z-Index</h2>
+			<div
+				style="
+					position: relative;
+					height: 200px;
+					background-color: #f0f0f0;
+					padding: 20px;
+				"
+			>
+				<div
+					style="
+						position: absolute;
+						top: 10px;
+						left: 10px;
+						background-color: red;
+						color: white;
+						padding: 10px;
+						z-index: 1;
+					"
+				>
+					Position: Absolute, Z-Index: 1
+				</div>
+				<div
+					style="
+						position: absolute;
+						top: 30px;
+						left: 30px;
+						background-color: blue;
+						color: white;
+						padding: 10px;
+						z-index: 2;
+					"
+				>
+					Position: Absolute, Z-Index: 2
+				</div>
+				<div
+					style="
+						position: absolute;
+						top: 50px;
+						left: 50px;
+						background-color: green;
+						color: white;
+						padding: 10px;
+						z-index: 3;
+					"
+				>
+					Position: Absolute, Z-Index: 3
+				</div>
+			</div>
+
+			<h2>Spacing Utilities</h2>
+			<div style="padding: 20px; background-color: #f8f9fa">
+				<div class="p-3 bg-primary text-white"> Padding 3 (1rem) </div>
+				<div class="m-3 p-2 bg-success text-white"> Margin 3 + Padding 2 </div>
+				<div class="p-5 bg-warning"> Padding 5 (3rem) </div>
+			</div>
+
+			<h2>Text Alignment</h2>
+			<div style="padding: 20px">
+				<p class="text-left" style="background-color: #e9ecef; padding: 10px">
+					Left aligned text
+				</p>
+				<p class="text-center" style="background-color: #e9ecef; padding: 10px">
+					Center aligned text
+				</p>
+				<p class="text-right" style="background-color: #e9ecef; padding: 10px">
+					Right aligned text
+				</p>
+			</div>
+
+			<h2>Borders and Rounded</h2>
+			<div style="padding: 20px">
+				<div class="border p-3" style="margin: 10px"> Box with border </div>
+				<div
+					class="border rounded p-3"
+					style="margin: 10px; background-color: #f8f9fa"
+				>
+					Box with border and rounded corners
+				</div>
+				<div
+					class="rounded-circle bg-primary"
+					style="
+						width: 100px;
+						height: 100px;
+						margin: 10px;
+						color: white;
+						display: flex;
+						align-items: center;
+						justify-content: center;
+					"
+				>
+					Circle
+				</div>
+			</div>
+
+			<h2>Opacity</h2>
+			<div
+				style="padding: 20px; background: linear-gradient(to right, red, blue)"
+			>
+				<div class="bg-white opacity-100 p-3" style="margin: 5px"
+					>100% Opacity</div
+				>
+				<div class="bg-white opacity-75 p-3" style="margin: 5px"
+					>75% Opacity</div
+				>
+				<div class="bg-white opacity-50 p-3" style="margin: 5px"
+					>50% Opacity</div
+				>
+				<div class="bg-white opacity-25 p-3" style="margin: 5px"
+					>25% Opacity</div
+				>
+			</div>
+
+			<h2>Images</h2>
+			<div style="padding: 20px">
+				<img
+					src="https://via.placeholder.com/300x200/4285F4/FFFFFF?text=MiiBrowser"
+					alt="Test Image"
+					class="img-fluid border"
+				/>
+				<p class="text-center">Image with max-width: 100%</p>
+			</div>
+
+			<h2>Tables</h2>
+			<table>
+				<thead>
+					<tr>
+						<th>Property</th>
+						<th>Status</th>
+						<th>Description</th>
+					</tr>
+				</thead>
+				<tbody>
+					<tr>
+						<td>color</td>
+						<td class="text-success font-weight-bold">✓ Working</td>
+						<td>Text color support</td>
+					</tr>
+					<tr>
+						<td>background-color</td>
+						<td class="text-success font-weight-bold">✓ Working</td>
+						<td>Background color support</td>
+					</tr>
+					<tr>
+						<td>width / height</td>
+						<td class="text-success font-weight-bold">✓ Working</td>
+						<td>Dimension support</td>
+					</tr>
+					<tr>
+						<td>position</td>
+						<td class="text-success font-weight-bold">✓ Working</td>
+						<td>Positioning support</td>
+					</tr>
+					<tr>
+						<td>z-index</td>
+						<td class="text-success font-weight-bold">✓ Working</td>
+						<td>Layer ordering support</td>
+					</tr>
+				</tbody>
+			</table>
+
+			<hr />
+
+			<div class="text-center p-5">
+				<h3 class="text-primary">✨ Enhanced CSS Support Enabled! ✨</h3>
+				<p
+					>MiiBrowser now supports colors, backgrounds, positioning, z-index,
+					and dimensions!</p
+				>
+			</div>
+		</div>
+	</body>
+</html>

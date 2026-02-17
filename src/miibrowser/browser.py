@@ -1,19 +1,24 @@
 """
 MiiBrowser - Chrome-style browser with tabs and DuckDuckGo search
-Now powered by pywebview for full Chromium support (JavaScript, cookies, WebGL, etc.)
 """
 
 import tkinter as tk
 from tkinter import ttk
 from typing import Optional, Dict, List
-import subprocess
-import sys
-import os
+import threading
 from miibrowser.search import DuckDuckGoSearch
+from miibrowser.css_enhancer import get_enhanced_css
+
+try:
+    from tkinterweb import HtmlFrame
+    WEBVIEW_AVAILABLE = True
+except ImportError:
+    WEBVIEW_AVAILABLE = False
+    print("Warning: tkinterweb not available. Links will open externally.")
 
 
 class BrowserTab:
-    """Represents a single browser tab with pywebview support"""
+    """Represents a single browser tab"""
     
     def __init__(self, tab_id: int, parent_frame: tk.Frame, search_engine: DuckDuckGoSearch):
         self.tab_id = tab_id
@@ -26,7 +31,6 @@ class BrowserTab:
         self.on_navigation_callback = None
         self.history = []
         self.history_index = -1
-        self.webview_process = None
         
         # Create tab content frame
         self.content_frame = tk.Frame(parent_frame, bg="#FFFFFF")
@@ -34,8 +38,9 @@ class BrowserTab:
         # Create search results area
         self._create_search_area()
         
-        # Create placeholder for webview
-        self._create_webview_area()
+        # Create web viewer area
+        if WEBVIEW_AVAILABLE:
+            self._create_webview_area()
         
         # Show search area by default
         self.search_frame.pack(fill=tk.BOTH, expand=True)
@@ -68,19 +73,105 @@ class BrowserTab:
         self.canvas.yview_scroll(int(-1*(event.delta/120)), "units")
     
     def _create_webview_area(self):
-        """Create placeholder for webview window"""
+        """Create web viewer area"""
         self.webview_frame = tk.Frame(self.content_frame, bg="#FFFFFF")
-        
-        # Info label for webview
-        info_label = tk.Label(
-            self.webview_frame,
-            text="Web content will open in a separate window\n(Full Chromium browser with JavaScript, cookies, and all modern features)",
-            bg="#FFFFFF",
-            fg="#5F6368",
-            font=("Segoe UI", 11),
-            pady=20
+        # Configure HtmlFrame with JavaScript and image support
+        self.html_widget = HtmlFrame(
+            self.webview_frame, 
+            messages_enabled=False,  # Disable debug messages
         )
-        info_label.pack()
+        self.html_widget.pack(fill=tk.BOTH, expand=True)
+        self._last_checked_url = None
+        self._check_pending = False
+    
+    def _on_url_changed(self, url):
+        """Called when URL changes in webview"""
+        try:
+            if url and url != self.current_url and url != "about:blank":
+                # Handle DuckDuckGo redirect URLs
+                if 'duckduckgo.com/l/?uddg=' in url:
+                    try:
+                        import urllib.parse
+                        parsed = urllib.parse.urlparse(url)
+                        params = urllib.parse.parse_qs(parsed.query)
+                        if 'uddg' in params:
+                            actual_url = urllib.parse.unquote(params['uddg'][0])
+                            self.html_widget.load_url(actual_url)
+                            return
+                    except Exception as e:
+                        print(f"Error handling DuckDuckGo redirect: {e}")
+                
+                # Update history
+                if self.history_index == len(self.history) - 1:
+                    self.history.append(url)
+                    self.history_index = len(self.history) - 1
+                elif self.history_index < len(self.history) - 1:
+                    self.history = self.history[:self.history_index + 1]
+                    self.history.append(url)
+                    self.history_index = len(self.history) - 1
+                
+                self.current_url = url
+                self._last_checked_url = url
+                # Extract domain for title
+                domain = url.split('//')[1].split('/')[0] if '//' in url else url[:30]
+                self.title = domain[:25] + "..." if len(domain) > 25 else domain
+                
+                # Trigger callback to update UI
+                if self.on_navigation_callback:
+                    self.on_navigation_callback(url, self.title)
+        except Exception as e:
+            print(f"Error in _on_url_changed: {e}")
+    
+    def _start_url_polling(self):
+        """Start URL change detection"""
+        if hasattr(self, 'html_widget') and self.is_showing_web:
+            self._check_url_change_fallback()
+    
+    def _check_url_change_fallback(self):
+        """Fallback URL check - only used if event system not available"""
+        try:
+            # Prevent multiple simultaneous checks
+            if self._check_pending:
+                return
+            
+            self._check_pending = True
+            
+            if hasattr(self, 'html_widget') and self.is_showing_web:
+                new_url = None
+                try:
+                    new_url = self.html_widget.get_url()
+                except:
+                    try:
+                        new_url = self.html_widget.current_url
+                    except:
+                        pass
+                
+                # Only trigger if URL actually changed and is different from last check
+                if new_url and new_url != self._last_checked_url and new_url != "about:blank":
+                    self._on_url_changed(new_url)
+                
+                # Check again after 3 seconds (slow, non-interfering polling)
+                if self.is_showing_web and hasattr(self, 'parent_frame'):
+                    try:
+                        if self.parent_frame.winfo_exists():
+                            self.parent_frame.after(3000, self._delayed_check)
+                    except:
+                        pass
+            
+            self._check_pending = False
+        except Exception as e:
+            print(f"Error in fallback URL check: {e}")
+            self._check_pending = False
+    
+    def _delayed_check(self):
+        """Delayed check to avoid interference with rendering"""
+        self._check_pending = False
+        if hasattr(self, 'is_showing_web') and self.is_showing_web:
+            self._check_url_change_fallback()
+    
+    def _check_url_change(self):
+        """DEPRECATED - Use event-based _on_url_changed instead"""
+        pass
     
     def show(self):
         """Show this tab's content"""
@@ -95,8 +186,9 @@ class BrowserTab:
         self.title = f"{query[:20]}..."
         self.is_showing_web = False
         
-        # Hide webview frame if showing
-        self.webview_frame.pack_forget()
+        # Hide webview if showing
+        if WEBVIEW_AVAILABLE and hasattr(self, 'webview_frame'):
+            self.webview_frame.pack_forget()
         
         # Show search frame
         self.search_frame.pack(fill=tk.BOTH, expand=True)
@@ -186,9 +278,19 @@ class BrowserTab:
         """Trigger URL open callback"""
         if self.url_open_callback:
             self.url_open_callback(url)
+        else:
+            # Fallback to external browser if callback not set
+            import webbrowser
+            webbrowser.open(url)
     
     def load_url(self, url: str):
-        """Load URL in pywebview window"""
+        """Load URL in web viewer with enhanced CSS support"""
+        if not WEBVIEW_AVAILABLE or not hasattr(self, 'webview_frame'):
+            # Fallback to external browser
+            import webbrowser
+            webbrowser.open(url)
+            return False
+        
         # Handle DuckDuckGo redirect URLs
         if 'duckduckgo.com/l/?uddg=' in url:
             try:
@@ -201,86 +303,107 @@ class BrowserTab:
                 print(f"Error handling DuckDuckGo redirect: {e}")
         
         self.current_url = url
-        
         # Add to history
-        if self.history_index == len(self.history) - 1:
-            self.history.append(url)
-            self.history_index = len(self.history) - 1
-        else:
-            self.history = self.history[:self.history_index + 1]
-            self.history.append(url)
-            self.history_index = len(self.history) - 1
+        self.history.append(url)
+        self.history_index = len(self.history) - 1
         
         # Extract domain for title
         domain = url.split('//')[1].split('/')[0] if '//' in url else url[:30]
         self.title = domain[:25] + "..." if len(domain) > 25 else domain
         self.is_showing_web = True
         
-        # Hide search frame
+        # Hide search frame first
         self.search_frame.pack_forget()
         
-        # Show webview frame (placeholder)
+        # Show and update webview
         self.webview_frame.pack(fill=tk.BOTH, expand=True)
         
-        # Launch pywebview in a separate process
-        self._launch_webview_process(url)
-        
-        return True
-    
-    def _launch_webview_process(self, url: str):
-        """Launch pywebview window in a separate process"""
         try:
-            # Close any existing process for this tab
-            if self.webview_process and self.webview_process.poll() is None:
-                self.webview_process.terminate()
+            # Try to fetch and enhance the HTML content
+            try:
+                import requests
+                response = requests.get(url, timeout=10, headers={
+                    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+                })
+                
+                if response.status_code == 200:
+                    html_content = response.text
+                    
+                    # Inject enhanced CSS into the HTML
+                    enhanced_css = f"<style>{get_enhanced_css()}</style>"
+                    
+                    # Try to inject CSS after <head> tag or at the beginning
+                    if '<head>' in html_content.lower():
+                        html_content = html_content.replace('<head>', f'<head>{enhanced_css}', 1)
+                    elif '<html>' in html_content.lower():
+                        html_content = html_content.replace('<html>', f'<html><head>{enhanced_css}</head>', 1)
+                    else:
+                        html_content = f'<html><head>{enhanced_css}</head><body>{html_content}</body></html>'
+                    
+                    # Load the enhanced HTML
+                    self.html_widget.load_html(html_content)
+                else:
+                    # If fetch fails, fall back to direct URL load
+                    self.html_widget.load_url(url)
+            except:
+                # If enhancement fails, fall back to direct URL load
+                self.html_widget.load_url(url)
             
-            # Get the path to the pywebview_window.py script
-            script_dir = os.path.dirname(os.path.abspath(__file__))
-            script_path = os.path.join(script_dir, 'pywebview_window.py')
+            # Force frame update to ensure display
+            self.webview_frame.update_idletasks()
+            self.parent_frame.update_idletasks()
             
-            # Launch the pywebview window as a subprocess
-            self.webview_process = subprocess.Popen(
-                [sys.executable, script_path, url, self.title],
-                stdout=subprocess.DEVNULL,
-                stderr=subprocess.DEVNULL,
-                creationflags=subprocess.CREATE_NO_WINDOW if sys.platform == 'win32' else 0
-            )
+            # Start URL change detection with 3-second polling
+            self._last_checked_url = url
+            self._check_pending = False
+            self.parent_frame.after(3000, self._check_url_change_fallback)
             
+            return True
         except Exception as e:
-            print(f"Error launching webview process: {e}")
+            print(f"Error loading URL: {e}")
+            return False
     
     def go_back(self):
         """Go back in browser history"""
-        if self.history_index > 0 and self.is_showing_web:
-            self.history_index -= 1
-            url = self.history[self.history_index]
-            self.current_url = url
-            # Update title
-            domain = url.split('//')[1].split('/')[0] if '//' in url else url[:30]
-            self.title = domain[:25] + "..." if len(domain) > 25 else domain
-            # Relaunch with new URL
-            self._launch_webview_process(url)
-            if self.on_navigation_callback:
-                self.on_navigation_callback(url, self.title)
+        if WEBVIEW_AVAILABLE and hasattr(self, 'html_widget') and self.is_showing_web:
+            if self.history_index > 0:
+                self.history_index -= 1
+                url = self.history[self.history_index]
+                self.current_url = url
+                try:
+                    self.html_widget.load_url(url)
+                    # Update title
+                    domain = url.split('//')[1].split('/')[0] if '//' in url else url[:30]
+                    self.title = domain[:25] + "..." if len(domain) > 25 else domain
+                    if self.on_navigation_callback:
+                        self.on_navigation_callback(url, self.title)
+                except Exception as e:
+                    print(f"Back navigation error: {e}")
     
     def go_forward(self):
         """Go forward in browser history"""
-        if self.history_index < len(self.history) - 1 and self.is_showing_web:
-            self.history_index += 1
-            url = self.history[self.history_index]
-            self.current_url = url
-            # Update title
-            domain = url.split('//')[1].split('/')[0] if '//' in url else url[:30]
-            self.title = domain[:25] + "..." if len(domain) > 25 else domain
-            # Relaunch with new URL
-            self._launch_webview_process(url)
-            if self.on_navigation_callback:
-                self.on_navigation_callback(url, self.title)
+        if WEBVIEW_AVAILABLE and hasattr(self, 'html_widget') and self.is_showing_web:
+            if self.history_index < len(self.history) - 1:
+                self.history_index += 1
+                url = self.history[self.history_index]
+                self.current_url = url
+                try:
+                    self.html_widget.load_url(url)
+                    # Update title
+                    domain = url.split('//')[1].split('/')[0] if '//' in url else url[:30]
+                    self.title = domain[:25] + "..." if len(domain) > 25 else domain
+                    if self.on_navigation_callback:
+                        self.on_navigation_callback(url, self.title)
+                except Exception as e:
+                    print(f"Forward navigation error: {e}")
     
     def reload(self):
         """Reload current page"""
-        if self.current_url and self.is_showing_web:
-            self._launch_webview_process(self.current_url)
+        if WEBVIEW_AVAILABLE and hasattr(self, 'html_widget') and self.current_url:
+            try:
+                self.html_widget.load_url(self.current_url)
+            except:
+                pass
 
 
 class MiiBrowser:
@@ -288,7 +411,7 @@ class MiiBrowser:
     
     def __init__(self):
         self.root = tk.Tk()
-        self.root.title("MiiBrowser - Powered by Chromium")
+        self.root.title("MiiBrowser")
         self.root.geometry("1400x900")
         
         # Allow window resizing
@@ -493,6 +616,11 @@ class MiiBrowser:
         # Address bar
         self.root.bind('<Control-l>', lambda e: self._focus_address_bar())
         self.root.bind('<Control-k>', lambda e: self._focus_address_bar())
+        
+        # Other Chrome shortcuts
+        self.root.bind('<Control-plus>', lambda e: self._zoom_in())
+        self.root.bind('<Control-minus>', lambda e: self._zoom_out())
+        self.root.bind('<Control-0>', lambda e: self._reset_zoom())
     
     def _create_new_tab(self):
         """Create a new tab"""
@@ -594,14 +722,6 @@ class MiiBrowser:
         if len(self.tabs) == 1:
             return
         
-        # Terminate webview process if it exists
-        if self.tabs[tab_id].webview_process:
-            try:
-                if self.tabs[tab_id].webview_process.poll() is None:
-                    self.tabs[tab_id].webview_process.terminate()
-            except:
-                pass
-        
         # Hide and remove tab
         self.tabs[tab_id].hide()
         del self.tabs[tab_id]
@@ -661,7 +781,7 @@ class MiiBrowser:
             self._open_url_in_tab('https://' + query)
             return
         
-        # It's a search query - open DuckDuckGo search URL
+        # It's a search query - create DuckDuckGo URL
         import urllib.parse
         encoded_query = urllib.parse.quote_plus(query)
         search_url = f"https://duckduckgo.com/?q={encoded_query}"
@@ -767,6 +887,18 @@ class MiiBrowser:
         self.search_entry.focus_set()
         self.search_entry.select_range(0, tk.END)
         self.search_entry.icursor(tk.END)
+    
+    def _zoom_in(self):
+        """Zoom in (placeholder - tkinterweb doesn't support zoom)"""
+        pass
+    
+    def _zoom_out(self):
+        """Zoom out (placeholder - tkinterweb doesn't support zoom)"""
+        pass
+    
+    def _reset_zoom(self):
+        """Reset zoom (placeholder - tkinterweb doesn't support zoom)"""
+        pass
     
     def run(self):
         """Start the browser application"""

@@ -1,18 +1,13 @@
 # MiiBrowser 🌐
 
-A modern Chrome-style Python browser powered by **full Chromium engine** (via pywebview). Features tabbed interface, complete JavaScript support, cookies, and all modern web capabilities including Google Maps!
+A modern Chrome-style Python browser with embedded web viewing and tabbed interface. Features DuckDuckGo search integration, full browsing capabilities, and powerful CSS/JavaScript parsing tools.
 
 ## Features ✨
 
 - 🔍 **DuckDuckGo Search**: Direct search integration with automatic redirect handling
 - 🗂️ **Chrome-Style Tabs**: Multiple independent tabs with easy switching
-- 🌐 **Full Chromium Engine**: Complete web browsing with pywebview (Edge WebView2 on Windows)
-- ⚡ **JavaScript Support**: Full ES6+ JavaScript execution - all modern sites work!
-- 🍪 **Cookie Management**: Session and persistent cookies for logged-in states
-- 🗺️ **Google Maps Compatible**: Google Maps and all interactive web apps work perfectly
-- 🎨 **WebGL & Canvas**: Full support for 3D graphics, Canvas API, and modern rendering
-- 📱 **Modern Web APIs**: localStorage, WebSockets, Geolocation, Service Workers, and more
-- 🖼️ **Full Image Support**: Display all image formats including JPG, PNG, SVG, WebP
+- 🌐 **Embedded Web Viewer**: Browse websites directly within the app using tkinterweb
+- 🖼️ **Full Image Support**: Display JPG, PNG, SVG, and other image formats
 - ⏮️ **Navigation Controls**: Back, forward, and reload buttons with history tracking
 - 🔄 **Smart URL Handling**: Automatic detection of URLs vs search queries
 - 🎨 **Modern UI**: Clean, Google-inspired design with intuitive controls
@@ -51,8 +46,10 @@ pip install -r requirements.txt
 - Python 3.7 or higher
 - tkinter (usually included with Python)
 - requests>=2.31.0 (HTTP requests)
-- pywebview>=6.0.0 (Chromium-based web browser)
-- Pillow>=9.0.0 (image support)
+- tkinterweb>=3.18.0 (embedded web browser)
+- Pillow>=9.0.0 (image support: JPG, PNG)
+- CairoSVG>=2.5.0 (SVG image support)
+- tkinterweb-tkhtml-extras>=1.3.0 (enhanced browser features)
 - tinycss2>=1.2.0 (CSS parsing)
 - esprima>=4.0.0 (JavaScript parsing)
 
@@ -81,17 +78,17 @@ python miibrowser/browser.py
 ### Quick Start
 
 1. **Search**: Type any query in the address bar and press Enter
-2. **Navigate**: Enter a URL (e.g., `github.com` or `maps.google.com`) and press Enter
-3. **Browse**: Web pages open in separate Chromium windows with full functionality
+2. **Navigate**: Enter a URL (e.g., `github.com`) and press Enter
+3. **Browse**: Web pages display embedded within the browser window
 4. **New Tab**: Click the `+` button or press `Ctrl+T`
 5. **History**: Use the back `◄` and forward `►` buttons to navigate history
 
-### Try These Sites (All Work Perfectly!)
+### Best For
 
-- **Google Maps**: `maps.google.com` ✅
-- **YouTube**: `youtube.com` ✅
-- **Google Docs**: `docs.google.com` ✅
-- **Complex Web Apps**: Any modern JavaScript site ✅
+- 📰 **Static Websites**: News sites, blogs, documentation
+- 🔍 **Search Results**: DuckDuckGo search with colorful results
+- 📄 **Simple Pages**: HTML pages with CSS and images
+- 🎨 **CSS/JS Analysis**: Built-in parsers for code analysis
 
 ## Keyboard Shortcuts ⌨️
 
